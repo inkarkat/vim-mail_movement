@@ -26,11 +26,26 @@ set cpo&vim
 "[]			Go to [count] previous end of an email quote. 
 
 
-" call CountJump#Motion#MakeBracketMotion('<buffer>', '', '', 
-" \   s:diffHunkHeaderPattern,
-" \   s:diffHunkEndPattern,
-" \   0
-" \)
+function! s:NextRegion( count, JumpFunc, ... )
+    let l:currentLine = line('.')
+    let [l:line, l:col] = call(a:JumpFunc, [a:count] + a:000)
+    if l:line == l:currentLine
+	return call(a:JumpFunc, [a:count] + a:000)
+    else
+	return [l:line, l:col]
+    endif
+endfunction
+function! s:JumpToEndForward( mode )
+    return CountJump#Region#Jump(a:mode, s:function('s:NextRegion'), function('CountJump#Region#SearchForRegionEnd'), s:QuotePattern(0), 1)
+    " return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuoteEnd'), 0)
+endfunction
+call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
+\   s:function('s:JumpToBeginForward'),
+\   s:function('s:JumpToBeginBackward'),
+\   s:function('s:JumpToEndForward'),
+\   s:function('s:JumpToEndBackward'),
+\   0
+\)
 
 
 "aq			"a quote" text object, select [count] email quotes
