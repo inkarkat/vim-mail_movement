@@ -34,21 +34,26 @@ set cpo&vim
 
 
 "aq			"a quote" text object, select [count] email quotes
-function! s:function(name)
-    return function(substitute(a:name, '^s:', matchstr(expand('<sfile>'), '<SNR>\d\+_\zefunction$'),''))
-endfunction 
+"iq			"inner quote" text object, select [count] regions with
+"			the same quoting level
+function! s:QuotePattern( isInner )
+    return '\V\^' . escape(s:quotePrefix, '\') . (a:isInner ? '\%( \*\$\| \*\[^ >]\)' : '')
+endfunction
 function! s:JumpToQuoteBegin( count, isInner )
     let s:quotePrefix = matchstr(getline('.'), '^[ >]*>')
     if empty(s:quotePrefix)
 	return [0, 0]
     endif
 
-    return CountJump#Region#SearchForRegionBorder(a:count, '\V\^' . escape(s:quotePrefix, '\'), -1)
+    return CountJump#Region#SearchForRegionBorder(a:count, s:QuotePattern(a:isInner), -1)
 endfunction
 function! s:JumpToQuoteEnd( count, isInner )
-    return CountJump#Region#SearchForRegionBorder(a:count, '\V\^' . escape(s:quotePrefix, '\'), 1)
+    return CountJump#Region#SearchForRegionBorder(a:count, s:QuotePattern(a:isInner), 1)
 endfunction
-call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'a', 'V',
+function! s:function(name)
+    return function(substitute(a:name, '^s:', matchstr(expand('<sfile>'), '<SNR>\d\+_\zefunction$'),''))
+endfunction 
+call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'ai', 'V',
 \   s:function('s:JumpToQuoteBegin'),
 \   s:function('s:JumpToQuoteEnd'),
 \)
