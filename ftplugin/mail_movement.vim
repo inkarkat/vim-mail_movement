@@ -36,26 +36,42 @@ set cpo&vim
 "aq			"a quote" text object, select [count] email quotes
 "iq			"inner quote" text object, select [count] regions with
 "			the same quoting level
-function! s:QuotePattern( isInner )
-    return '\V\^' . escape(s:quotePrefix, '\') . (a:isInner ? '\%( \*\$\| \*\[^ >]\)' : '')
+function! s:QuotePattern( isQuoteLevel )
+    return '\V\^' . escape(s:quotePrefix, '\') . (a:isQuoteLevel ? '\%( \*\$\| \*\[^ >]\)' : '')
 endfunction
-function! s:JumpToQuoteBegin( count, isInner )
+function! s:JumpToQuoteRegionBegin( count, isQuoteLevel )
     let s:quotePrefix = matchstr(getline('.'), '^[ >]*>')
     if empty(s:quotePrefix)
 	return [0, 0]
     endif
 
-    return CountJump#Region#SearchForRegionBorder(a:count, s:QuotePattern(a:isInner), -1)
+    return CountJump#Region#SearchForRegionBorder(a:count, s:QuotePattern(a:isQuoteLevel), -1)
+endfunction
+function! s:JumpToQuoteRegionEnd( count, isQuoteLevel )
+    return CountJump#Region#SearchForRegionBorder(a:count, s:QuotePattern(a:isQuoteLevel), 1)
+endfunction
+function! s:JumpToQuoteBegin( count, isInner )
+    return s:JumpToQuoteRegionBegin(a:count, 0)
 endfunction
 function! s:JumpToQuoteEnd( count, isInner )
-    return CountJump#Region#SearchForRegionBorder(a:count, s:QuotePattern(a:isInner), 1)
+    return s:JumpToQuoteRegionEnd(a:count, 0)
+endfunction
+function! s:JumpToQuoteLevelBegin( count, isInner )
+    return s:JumpToQuoteRegionBegin(a:count, 1)
+endfunction
+function! s:JumpToQuoteLevelEnd( count, isInner )
+    return s:JumpToQuoteRegionEnd(a:count, 1)
 endfunction
 function! s:function(name)
     return function(substitute(a:name, '^s:', matchstr(expand('<sfile>'), '<SNR>\d\+_\zefunction$'),''))
 endfunction 
-call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'ai', 'V',
+call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'a', 'V',
 \   s:function('s:JumpToQuoteBegin'),
 \   s:function('s:JumpToQuoteEnd'),
+\)
+call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'i', 'V',
+\   s:function('s:JumpToQuoteLevelBegin'),
+\   s:function('s:JumpToQuoteLevelEnd'),
 \)
 
 let &cpo = s:save_cpo
