@@ -25,6 +25,9 @@ set cpo&vim
 "[[			Go to [count] previous start of an email quote. 
 "[]			Go to [count] previous end of an email quote. 
 
+function! s:function(name)
+    return function(substitute(a:name, '^s:', matchstr(expand('<sfile>'), '<SNR>\d\+_\zefunction$'),''))
+endfunction 
 
 function! s:NextRegion( count, JumpFunc, ... )
     let l:currentLine = line('.')
@@ -35,9 +38,19 @@ function! s:NextRegion( count, JumpFunc, ... )
 	return [l:line, l:col]
     endif
 endfunction
+function! s:JumpToBeginForward( mode )
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#SearchForNextRegion'), s:QuotePattern(0), 1, 0)
+endfunction
+function! s:JumpToBeginBackward( mode )
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#SearchForNextRegion'), s:QuotePattern(0), -1, 0)
+endfunction
 function! s:JumpToEndForward( mode )
-    return CountJump#Region#Jump(a:mode, s:function('s:NextRegion'), function('CountJump#Region#SearchForRegionEnd'), s:QuotePattern(0), 1)
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#SearchForNextRegion'), s:QuotePattern(0), 1, 1)
+    " return CountJump#Region#Jump(a:mode, s:function('s:NextRegion'), function('CountJump#Region#SearchForRegionEnd'), s:QuotePattern(0), 1)
     " return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuoteEnd'), 0)
+endfunction
+function! s:JumpToEndBackward( mode )
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#SearchForNextRegion'), s:QuotePattern(0), -1, 1)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
 \   s:function('s:JumpToBeginForward'),
@@ -65,9 +78,6 @@ endfunction
 function! s:JumpToQuoteEnd( count, isInner )
     return CountJump#Region#SearchForRegionEnd(a:count, s:QuotePattern(a:isInner), 1)
 endfunction
-function! s:function(name)
-    return function(substitute(a:name, '^s:', matchstr(expand('<sfile>'), '<SNR>\d\+_\zefunction$'),''))
-endfunction 
 call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'aI', 'V',
 \   s:function('s:JumpToQuoteBegin'),
 \   s:function('s:JumpToQuoteEnd'),
