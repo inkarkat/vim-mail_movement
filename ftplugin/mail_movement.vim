@@ -63,6 +63,30 @@ call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '',
 \)
 
 
+"			Move to email quotes of a higher nesting level, as
+"			determined by the current line; if the cursor is not on
+"			a quoted line, any nesting level will be used. 
+"]+			Go to [count] next start of a nested email quote. 
+"[+			Go to [count] previous start of a nested email quote. 
+function! s:GetNestedQuotePattern()
+    let l:quotePrefix = matchstr(getline('.'), '^[ >]*>')
+    return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0) . '\V \*>')
+endfunction
+function! s:JumpToNestedForward( mode )
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 0)
+endfunction
+function! s:JumpToNestedBackward( mode )
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), -1, 1)
+endfunction
+call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '+', '', 
+\   s:function('s:JumpToNestedForward'),
+\   s:function('s:JumpToNestedBackward'),
+\   0,
+\   0,
+\   0
+\)
+
+
 "aq			"a quote" text object, select [count] email quotes
 "iq			"inner quote" text object, select [count] regions with
 "			the same quoting level
