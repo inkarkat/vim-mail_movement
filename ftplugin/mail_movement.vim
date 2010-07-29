@@ -19,6 +19,9 @@ endif
 let s:save_cpo = &cpo
 set cpo&vim
 
+" Force loading of autoload script, because creation of funcref doesn't do this. 
+silent! call CountJump#Region#DoesNotExist()
+
 "			Move around email quotes: 
 "]]			Go to [count] next start of an email quote. 
 "][			Go to [count] next end of an email quote. 
@@ -33,16 +36,16 @@ function! s:QuotePattern( quotePrefix, isInner )
 endfunction
 
 function! s:JumpToBeginForward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#SearchForNextRegion'), s:QuotePattern('>', 0), 1, 0)
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:QuotePattern('>', 0), 1, 0)
 endfunction
 function! s:JumpToBeginBackward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#SearchForNextRegion'), s:QuotePattern('>', 0), -1, 1)
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:QuotePattern('>', 0), -1, 1)
 endfunction
 function! s:JumpToEndForward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#SearchForNextRegion'), s:QuotePattern('>', 0), 1, 1)
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:QuotePattern('>', 0), 1, 1)
 endfunction
 function! s:JumpToEndBackward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#SearchForNextRegion'), s:QuotePattern('>', 0), -1, 0)
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:QuotePattern('>', 0), -1, 0)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
 \   s:function('s:JumpToBeginForward'),
@@ -62,10 +65,10 @@ function! s:JumpToQuoteBegin( count, isInner )
 	return [0, 0]
     endif
 
-    return CountJump#Region#SearchForRegionEnd(a:count, s:QuotePattern(s:quotePrefix, a:isInner), -1)
+    return CountJump#Region#JumpToRegionEnd(a:count, s:QuotePattern(s:quotePrefix, a:isInner), -1)
 endfunction
 function! s:JumpToQuoteEnd( count, isInner )
-    return CountJump#Region#SearchForRegionEnd(a:count, s:QuotePattern(s:quotePrefix, a:isInner), 1)
+    return CountJump#Region#JumpToRegionEnd(a:count, s:QuotePattern(s:quotePrefix, a:isInner), 1)
 endfunction
 call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'aI', 'V',
 \   s:function('s:JumpToQuoteBegin'),
