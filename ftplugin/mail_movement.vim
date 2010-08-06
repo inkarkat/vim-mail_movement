@@ -44,17 +44,32 @@ function! s:GetCurrentQuoteNestingPattern()
     let l:quotePrefix = matchstr(getline('.'), '^[ >]*>')
     return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0))
 endfunction
+function! s:GetDifference( pos )
+    let l:difference = (a:pos[0] == 0 ? 0x7FFFFFFF : (a:pos[0] - line('.')))
+    return (l:difference < 0 ? -1 * l:difference : l:difference)
+endfunction
+function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion )
+    let l:regionPos = CountJump#Region#SearchForNextRegion(a:count, a:pattern, a:step, a:isAcrossRegion)
+    let l:separatorPos = searchpos('^From:\s', (a:step == -1 ? 'b' : '') . 'nW')
+
+    let l:pos = (s:GetDifference(l:regionPos) < s:GetDifference(l:separatorPos) ? l:regionPos : l:separatorPos)
+    if l:pos != [0, 0]
+	call setpos('.', [0] + l:pos + [0])
+	normal! zv
+    endif
+    return l:pos 
+endfunction
 function! s:JumpToBeginForward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetCurrentQuoteNestingPattern(), 1, 0)
+    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0)
 endfunction
 function! s:JumpToBeginBackward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetCurrentQuoteNestingPattern(), -1, 1)
+    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1)
 endfunction
 function! s:JumpToEndForward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetCurrentQuoteNestingPattern(), 1, 1)
+    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1)
 endfunction
 function! s:JumpToEndBackward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetCurrentQuoteNestingPattern(), -1, 0)
+    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
 \   s:function('s:JumpToBeginForward'),
