@@ -9,6 +9,7 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS 
+"   1.00.002	03-Aug-2010	Published. 
 "	001	19-Jul-2010	file creation from diff_movement.vim
 
 " Avoid installing when in unsupported Vim version. 
@@ -19,7 +20,7 @@ endif
 let s:save_cpo = &cpo
 set cpo&vim
 
-" Force loading of autoload script, because creation of funcref doesn't do this. 
+" Force loading of autoload script, because creation of Funcref doesn't do this. 
 silent! call CountJump#Region#DoesNotExist()
 
 
@@ -27,7 +28,8 @@ function! s:function(name)
     return function(substitute(a:name, '^s:', matchstr(expand('<sfile>'), '<SNR>\d\+_\zefunction$'),''))
 endfunction 
 function! s:MakeQuotePattern( quotePrefix, isInner )
-    return '\V\^' . escape(a:quotePrefix, '\') . (a:isInner ? '\%( \*\$\| \*\[^ >]\)' : '')
+    let l:quoteLevel = strlen(substitute(a:quotePrefix, '[^>]', '', 'g'))
+    return '^\%( *>\)\{' . l:quoteLevel . '\}' . (a:isInner ? '\%( *$\| *[^ >]\)' : '')
 endfunction
 
 
@@ -63,14 +65,14 @@ call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '',
 \)
 
 
-"			Move to email quotes of a higher nesting level, as
-"			determined by the current line; if the cursor is not on
-"			a quoted line, any nesting level will be used. 
+"			Move to nested email quote (i.e. of a higher nesting
+"			level as the current line; if the cursor is not on a
+"			quoted line, any nesting level will be used). 
 "]+			Go to [count] next start of a nested email quote. 
 "[+			Go to [count] previous start of a nested email quote. 
 function! s:GetNestedQuotePattern()
     let l:quotePrefix = matchstr(getline('.'), '^[ >]*>')
-    return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0) . '\V \*>')
+    return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0) . ' *>')
 endfunction
 function! s:JumpToNestedForward( mode )
     return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 0)
