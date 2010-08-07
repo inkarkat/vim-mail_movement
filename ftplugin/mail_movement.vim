@@ -48,6 +48,10 @@ function! s:GetDifference( pos )
     let l:difference = (a:pos[0] == 0 ? 0x7FFFFFFF : (a:pos[0] - line('.')))
     return (l:difference < 0 ? -1 * l:difference : l:difference)
 endfunction
+let s:mailSeparatorPatterns = [ '-\+Original Message-\+\n', '_\+\n' ]
+function! s:GetMailSeparatorPattern()
+    return '\%(' . join(s:mailSeparatorPatterns, '\|') . '\)'
+endfunction
 function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion, isToEnd )
     " Jump to the next <count>'th quoted region or email separator line,
     " whichever is closer to the current position. "Closer" here exactly means
@@ -68,7 +72,10 @@ function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion,
     " the current position. 
     let l:nextRegionPos = CountJump#Region#SearchForNextRegion(1, a:pattern, a:step, a:isAcrossRegion)
 
-    let l:separatorPattern = (a:isToEnd ? '^\%(-\+Original Message-\+\n\|_\+\n\)\@!.*\n\%(-\+Original Message-\+\n\|_\+\n\)\?From:\s\|\%$' : '^From:\s')
+    let l:separatorPattern = (a:isToEnd ?
+    \	'^' . s:GetMailSeparatorPattern() . '\@!.*\n' . s:GetMailSeparatorPattern() . '\?From:\s\|\%$' :
+    \	'^From:\s'
+    \)
     let l:separatorSearchOptions = (a:step == -1 ? 'b' : '') . 'W'
     let l:nextSeparatorPos = searchpos(l:separatorPattern, l:separatorSearchOptions . 'n')
 
