@@ -48,28 +48,52 @@ function! s:GetDifference( pos )
     let l:difference = (a:pos[0] == 0 ? 0x7FFFFFFF : (a:pos[0] - line('.')))
     return (l:difference < 0 ? -1 * l:difference : l:difference)
 endfunction
-function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion )
-    let l:regionPos = CountJump#Region#SearchForNextRegion(a:count, a:pattern, a:step, a:isAcrossRegion)
-    let l:separatorPos = searchpos('^From:\s', (a:step == -1 ? 'b' : '') . 'nW')
+function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion, isToEnd )
+    " Jump to the next <count>'th quoted region or email separator line,
+    " whichever is closer to the current position. "Closer" here exactly means
+    " whichever type lies closer to the current position. This should only
+    " matter if separated emails contain quotes; we then want a 2]] jump to the
+    " beginning of the second separated email, not to the second quotes
+    " contained in the first mail. 
+    "	X We're here. 
+    " 	-- message 1 --
+    " 	blah
+    " 	> quote 1
+    " 	> quote 2
+    " 	blah
+    " 	-- message 2 --
+    " 	2]] should jump here. 
+    " This is implemented by searching for the next region / separator (without
+    " moving the cursor), and then choosing the one that exists and is closer to
+    " the current position. 
+    let l:nextRegionPos = CountJump#Region#SearchForNextRegion(1, a:pattern, a:step, a:isAcrossRegion)
 
-    let l:pos = (s:GetDifference(l:regionPos) < s:GetDifference(l:separatorPos) ? l:regionPos : l:separatorPos)
-    if l:pos != [0, 0]
-	call setpos('.', [0] + l:pos + [0])
-	normal! zv
+    let l:separatorPattern = (a:isToEnd ? '^\%(-\+Original Message-\+\n\|_\+\n\)\@!.*\n\%(-\+Original Message-\+\n\|_\+\n\)\?From:\s\|\%$' : '^From:\s')
+    let l:separatorSearchOptions = (a:step == -1 ? 'b' : '') . 'W'
+    let l:nextSeparatorPos = searchpos(l:separatorPattern, l:separatorSearchOptions . 'n')
+
+    let l:nextRegionDifference = s:GetDifference(l:nextRegionPos)
+    let l:nextSeparatorDifference = s:GetDifference(l:nextSeparatorPos)
+
+    if l:nextRegionDifference < l:nextSeparatorDifference && l:nextRegionPos != [0, 0]
+	return CountJump#Region#JumpToNextRegion(a:count, a:pattern, a:step, a:isAcrossRegion)
+    elseif l:nextSeparatorPos != [0, 0]
+	return CountJump#CountSearch(a:count, [l:separatorPattern, l:separatorSearchOptions])
+    else
+	return [0, 0]
     endif
-    return l:pos 
 endfunction
 function! s:JumpToBeginForward( mode )
-    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0)
+    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0, 0)
 endfunction
 function! s:JumpToBeginBackward( mode )
-    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1)
+    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1, 0)
 endfunction
 function! s:JumpToEndForward( mode )
-    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1)
+    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1)
 endfunction
 function! s:JumpToEndBackward( mode )
-    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0)
+    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
 \   s:function('s:JumpToBeginForward'),
