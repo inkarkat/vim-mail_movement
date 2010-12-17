@@ -9,6 +9,9 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS 
+"   1.51.004	18-Dec-2010	Adapted to extended interface of
+"				CountJump#Region#SearchForNextRegion() in
+"				CountJump 1.30. 
 "   1.50.003	08-Aug-2010	ENH: Added support for MS Outlook-style quoting
 "				with email separator and mail headers. Whether
 "				regions of prefixed lines or lines preceded by
@@ -90,7 +93,7 @@ function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion,
     " This is implemented by searching for the next region / separator (without
     " moving the cursor), and then choosing the one that exists and is closer to
     " the current position. 
-    let l:nextRegionPos = CountJump#Region#SearchForNextRegion(1, a:pattern, a:step, a:isAcrossRegion)
+    let l:nextRegionPos = CountJump#Region#SearchForNextRegion(1, a:pattern, 1, a:step, a:isAcrossRegion)
 
     let l:separatorPattern = (a:isToEnd ?
     \	'^' . s:GetMailSeparatorPattern() . '\@!.*\n' . s:GetMailSeparatorPattern() . '\?From:\s\|\%$' :
@@ -103,7 +106,7 @@ function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion,
     let l:nextSeparatorDifference = s:GetDifference(l:nextSeparatorPos)
 
     if l:nextRegionDifference < l:nextSeparatorDifference && l:nextRegionPos != [0, 0]
-	return CountJump#Region#JumpToNextRegion(a:count, a:pattern, a:step, a:isAcrossRegion)
+	return CountJump#Region#JumpToNextRegion(a:count, a:pattern, 1, a:step, a:isAcrossRegion)
     elseif l:nextSeparatorPos != [0, 0]
 	return CountJump#CountSearch(a:count, [l:separatorPattern, l:separatorSearchOptions])
     else
@@ -141,10 +144,10 @@ function! s:GetNestedQuotePattern()
     return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0) . ' *>')
 endfunction
 function! s:JumpToNestedForward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 0)
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 1, 0)
 endfunction
 function! s:JumpToNestedBackward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), -1, 1)
+    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, -1, 1)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '+', '', 
 \   s:function('s:JumpToNestedForward'),
@@ -182,14 +185,14 @@ function! s:JumpToQuoteBegin( count, isInner )
 	endif
     endif
 
-    return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), -1)
+    return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1, -1)
 endfunction
 function! s:JumpToQuoteEnd( count, isInner )
     if empty(s:quotePrefix)
 	let l:separatorPattern = '^' . s:GetMailSeparatorPattern() . '\@!.*\n' . s:GetMailSeparatorPattern() . '\?From:\s\|\%$'
 	return CountJump#CountSearch(a:count, [l:separatorPattern, 'W'])
     else
-	return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1)
+	return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1, 1)
     endif
 endfunction
 call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'aI', 'V',
