@@ -9,6 +9,11 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS 
+"   1.50.003	08-Aug-2010	ENH: Added support for MS Outlook-style quoting
+"				with email separator and mail headers. Whether
+"				regions of prefixed lines or lines preceded by
+"				separator + headers are used is determined by
+"				context. 
 "   1.00.002	03-Aug-2010	Published. 
 "	001	19-Jul-2010	file creation from diff_movement.vim
 
@@ -23,6 +28,15 @@ set cpo&vim
 " Force loading of autoload script, because creation of Funcref doesn't do this. 
 silent! call CountJump#Region#DoesNotExist()
 
+" List of patterns for email separator lines. These are anchored at the
+" beginning of the line (implicit /^/, do not add) and must include the end of
+" the separator line by concluding the pattern with /\n/. 
+if ! exists('g:mail_SeparatorPatterns')
+    let g:mail_SeparatorPatterns = [ '-\+Original Message-\+\n', '_\+\n' ]
+endif
+function! s:GetMailSeparatorPattern()
+    return '\%(' . join(g:mail_SeparatorPatterns, '\|') . '\)'
+endfunction
 
 function! s:function(name)
     return function(substitute(a:name, '^s:', matchstr(expand('<sfile>'), '<SNR>\d\+_\zefunction$'),''))
@@ -32,10 +46,20 @@ function! s:MakeQuotePattern( quotePrefix, isInner )
     return '^\%( *>\)\{' . l:quoteLevel . '\}' . (a:isInner ? '\%( *$\| *[^ >]\)' : '')
 endfunction
 
+"			A quoted email is determined either by: 
+"			- lines prefixed with ">" (one, or multiple for nested
+"			  quotes) 
+"			- an optional email separator (e.g.
+"			"-----Original Message-----") and the standard "From: <Name>"
+"			mail header, optionally followed by other header lines. 
 
-"			Move around email quotes of a certain nesting level, as
-"			determined by the current line; if the cursor is not on
-"			a quoted line, any nesting level will be used. 
+"			Move around email quotes of either: 
+"			- a certain nesting level, as determined by the current
+"			  line; if the cursor is not on a quoted line, any
+"			  nesting level will be used. 
+"			- the range of lines from the "From: <Name>" mail header
+"			  up to the line preceding the next email separator or
+"			  next mail header. 
 "]]			Go to [count] next start of an email quote. 
 "][			Go to [count] next end of an email quote. 
 "[[			Go to [count] previous start of an email quote. 
@@ -47,10 +71,6 @@ endfunction
 function! s:GetDifference( pos )
     let l:difference = (a:pos[0] == 0 ? 0x7FFFFFFF : (a:pos[0] - line('.')))
     return (l:difference < 0 ? -1 * l:difference : l:difference)
-endfunction
-let s:mailSeparatorPatterns = [ '-\+Original Message-\+\n', '_\+\n' ]
-function! s:GetMailSeparatorPattern()
-    return '\%(' . join(s:mailSeparatorPatterns, '\|') . '\)'
 endfunction
 function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion, isToEnd )
     " Jump to the next <count>'th quoted region or email separator line,
@@ -135,19 +155,42 @@ call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '+', '',
 \)
 
 
-"aq			"a quote" text object, select [count] email quotes
+"aq			"a quote" text object, select [count] email quotes, i.e. 
+"			- contiguous lines having at least the same as the
+"			  current line's nesting level
+"			- one email message including the preceding mail headers
+"			  and optional email separator
 "iq			"inner quote" text object, select [count] regions with
-"			the same quoting level
+"			either: 
+"			- the same nesting level
+"			- the contents of an email message without the preceding
+"			  mail headers
 function! s:JumpToQuoteBegin( count, isInner )
     let s:quotePrefix = matchstr(getline('.'), '^[ >]*>')
     if empty(s:quotePrefix)
-	return [0, 0]
+	if a:isInner
+	    let l:separatorPattern = '^' . s:GetMailSeparatorPattern() . '\?From:.*\n\%([A-Za-z0-9_-]\+:.*\n\)*'
+	    let l:matchPos = CountJump#CountSearch(a:count, [l:separatorPattern, 'bcW'])
+	    if l:matchPos != [0, 0]
+		call CountJump#CountSearch(1, [l:separatorPattern, 'ceW'])
+		normal! j
+	    endif
+	    return l:matchPos
+	else
+	    let l:separatorPattern = '\%(^' . s:GetMailSeparatorPattern() . '\@!.*\n\zs\|\%^\)' . s:GetMailSeparatorPattern() . '\?From:\s'
+	    return CountJump#CountSearch(a:count, [l:separatorPattern, 'bcW'])
+	endif
     endif
 
     return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), -1)
 endfunction
 function! s:JumpToQuoteEnd( count, isInner )
-    return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1)
+    if empty(s:quotePrefix)
+	let l:separatorPattern = '^' . s:GetMailSeparatorPattern() . '\@!.*\n' . s:GetMailSeparatorPattern() . '\?From:\s\|\%$'
+	return CountJump#CountSearch(a:count, [l:separatorPattern, 'W'])
+    else
+	return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1)
+    endif
 endfunction
 call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'aI', 'V',
 \   s:function('s:JumpToQuoteBegin'),
