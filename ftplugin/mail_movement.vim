@@ -9,6 +9,13 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS 
+"   1.51.006	19-Dec-2010	Adapted to changed interface of
+"				CountJump#Region#JumpToNextRegion(): Additional
+"				a:isToEndOfLine argument, and does not return
+"				position any more.  
+"				Adapted to changed interface of
+"				CountJump#JumpFunc(): Need to ring the bell
+"				myself, no need for returning position any more. 
 "   1.51.005	18-Dec-2010	Renamed CountJump#Region#Jump() to
 "				CountJump#JumpFunc(). 
 "   1.51.004	18-Dec-2010	Adapted to extended interface of
@@ -108,24 +115,29 @@ function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion,
     let l:nextSeparatorDifference = s:GetDifference(l:nextSeparatorPos)
 
     if l:nextRegionDifference < l:nextSeparatorDifference && l:nextRegionPos != [0, 0]
-	return CountJump#Region#JumpToNextRegion(a:count, a:pattern, 1, a:step, a:isAcrossRegion)
+	call CountJump#Region#JumpToNextRegion(a:count, a:pattern, 1, a:step, a:isAcrossRegion, 0)
     elseif l:nextSeparatorPos != [0, 0]
-	return CountJump#CountSearch(a:count, [l:separatorPattern, l:separatorSearchOptions])
+	call CountJump#CountSearch(a:count, [l:separatorPattern, l:separatorSearchOptions])
     else
-	return [0, 0]
+	" Ring the bell to indicate that no further match exists. 
+	"
+	" As long as this mapping does not exist, it causes a beep in both
+	" normal and visual mode. This is easier than the customary "normal!
+	" \<Esc>", which only works in normal mode. 
+	execute "normal \<Plug>RingTheBell"
     endif
 endfunction
 function! s:JumpToBeginForward( mode )
-    return CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0, 0)
+    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0, 0)
 endfunction
 function! s:JumpToBeginBackward( mode )
-    return CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1, 0)
+    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1, 0)
 endfunction
 function! s:JumpToEndForward( mode )
-    return CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1)
+    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1)
 endfunction
 function! s:JumpToEndBackward( mode )
-    return CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
+    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
 \   s:function('s:JumpToBeginForward'),
@@ -146,10 +158,10 @@ function! s:GetNestedQuotePattern()
     return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0) . ' *>')
 endfunction
 function! s:JumpToNestedForward( mode )
-    return CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 1, 0)
+    call CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 1, 0, 0)
 endfunction
 function! s:JumpToNestedBackward( mode )
-    return CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, -1, 1)
+    call CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, -1, 1, 0)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '+', '', 
 \   s:function('s:JumpToNestedForward'),
@@ -187,14 +199,16 @@ function! s:JumpToQuoteBegin( count, isInner )
 	endif
     endif
 
-    return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1, -1)
+    call CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1, -1, 0)
+    return getpos('.')[1:2]
 endfunction
 function! s:JumpToQuoteEnd( count, isInner )
     if empty(s:quotePrefix)
 	let l:separatorPattern = '^' . s:GetMailSeparatorPattern() . '\@!.*\n' . s:GetMailSeparatorPattern() . '\?From:\s\|\%$'
 	return CountJump#CountSearch(a:count, [l:separatorPattern, 'W'])
     else
-	return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1, 1)
+	call CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1, 1, 0)
+	return getpos('.')[1:2]
     endif
 endfunction
 call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'aI', 'V',
