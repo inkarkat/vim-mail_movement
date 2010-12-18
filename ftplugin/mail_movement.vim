@@ -9,6 +9,8 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS 
+"   1.51.005	18-Dec-2010	Renamed CountJump#Region#Jump() to
+"				CountJump#JumpFunc(). 
 "   1.51.004	18-Dec-2010	Adapted to extended interface of
 "				CountJump#Region#SearchForNextRegion() in
 "				CountJump 1.30. 
@@ -114,16 +116,16 @@ function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion,
     endif
 endfunction
 function! s:JumpToBeginForward( mode )
-    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0, 0)
+    return CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0, 0)
 endfunction
 function! s:JumpToBeginBackward( mode )
-    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1, 0)
+    return CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1, 0)
 endfunction
 function! s:JumpToEndForward( mode )
-    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1)
+    return CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1)
 endfunction
 function! s:JumpToEndBackward( mode )
-    return CountJump#Region#Jump(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
+    return CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
 \   s:function('s:JumpToBeginForward'),
@@ -144,10 +146,10 @@ function! s:GetNestedQuotePattern()
     return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0) . ' *>')
 endfunction
 function! s:JumpToNestedForward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 1, 0)
+    return CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 1, 0)
 endfunction
 function! s:JumpToNestedBackward( mode )
-    return CountJump#Region#Jump(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, -1, 1)
+    return CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, -1, 1)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '+', '', 
 \   s:function('s:JumpToNestedForward'),
