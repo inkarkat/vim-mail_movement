@@ -9,7 +9,11 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS 
-"   1.51.006	19-Dec-2010	Adapted to changed interface of
+"   1.51.006	19-Dec-2010	ENH: ][ mapping in operator-pending and visual
+"				mode now also operates over / select the last
+"				line of the quote. This is what the user
+"				expects. 
+"				Adapted to changed interface of
 "				CountJump#Region#JumpToNextRegion(): Additional
 "				a:isToEndOfLine argument, and does not return
 "				position any more.  
@@ -84,7 +88,8 @@ function! s:GetDifference( pos )
     let l:difference = (a:pos[0] == 0 ? 0x7FFFFFFF : (a:pos[0] - line('.')))
     return (l:difference < 0 ? -1 * l:difference : l:difference)
 endfunction
-function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion, isToEnd )
+function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion, isToEnd, ... )
+    let l:isToEndOfLine = (a:0 ? a:1 : 0)
     " Jump to the next <count>'th quoted region or email separator line,
     " whichever is closer to the current position. "Closer" here exactly means
     " whichever type lies closer to the current position. This should only
@@ -115,9 +120,12 @@ function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion,
     let l:nextSeparatorDifference = s:GetDifference(l:nextSeparatorPos)
 
     if l:nextRegionDifference < l:nextSeparatorDifference && l:nextRegionPos != [0, 0]
-	call CountJump#Region#JumpToNextRegion(a:count, a:pattern, 1, a:step, a:isAcrossRegion, 0)
+	call CountJump#Region#JumpToNextRegion(a:count, a:pattern, 1, a:step, a:isAcrossRegion, l:isToEndOfLine)
     elseif l:nextSeparatorPos != [0, 0]
 	call CountJump#CountSearch(a:count, [l:separatorPattern, l:separatorSearchOptions])
+	if l:isToEndOfLine
+	    normal! $
+	endif
     else
 	" Ring the bell to indicate that no further match exists. 
 	"
@@ -134,7 +142,8 @@ function! s:JumpToBeginBackward( mode )
     call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1, 0)
 endfunction
 function! s:JumpToEndForward( mode )
-    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1)
+    let l:useToEndOfLine = (a:mode !=# 'n')
+    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1, l:useToEndOfLine)
 endfunction
 function! s:JumpToEndBackward( mode )
     call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
@@ -142,9 +151,16 @@ endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
 \   s:function('s:JumpToBeginForward'),
 \   s:function('s:JumpToBeginBackward'),
-\   s:function('s:JumpToEndForward'),
+\   '',
 \   s:function('s:JumpToEndBackward'),
 \   0
+\)
+call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
+\   '',
+\   '',
+\   s:function('s:JumpToEndForward'),
+\   '',
+\   1
 \)
 
 
