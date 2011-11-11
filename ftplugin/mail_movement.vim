@@ -9,6 +9,8 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS 
+"   1.54.009	21-Sep-2011	Avoid use of s:function() by using autoload
+"				function name.
 "   1.53.008	13-Jun-2011	FIX: Directly ring the bell to avoid problems
 "				when running under :silent!. 
 "   1.52.007	20-Dec-2010	Adapted to CountJump#Region#JumpToNextRegion()
@@ -41,7 +43,6 @@
 if v:version < 700
     finish
 endif 
-
 let s:save_cpo = &cpo
 set cpo&vim
 
@@ -58,9 +59,6 @@ function! s:GetMailSeparatorPattern()
     return '\%(' . join(g:mail_SeparatorPatterns, '\|') . '\)'
 endfunction
 
-function! s:function(name)
-    return function(substitute(a:name, '^s:', matchstr(expand('<sfile>'), '<SNR>\d\+_\zefunction$'),''))
-endfunction 
 function! s:MakeQuotePattern( quotePrefix, isInner )
     let l:quoteLevel = strlen(substitute(a:quotePrefix, '[^>]', '', 'g'))
     return '^\%( *>\)\{' . l:quoteLevel . '\}' . (a:isInner ? '\%( *$\| *[^ >]\)' : '')
@@ -92,7 +90,7 @@ function! s:GetDifference( pos )
     let l:difference = (a:pos[0] == 0 ? 0x7FFFFFFF : (a:pos[0] - line('.')))
     return (l:difference < 0 ? -1 * l:difference : l:difference)
 endfunction
-function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion, isToEnd, ... )
+function! mail_movement#JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion, isToEnd, ... )
     let l:isToEndOfLine = (a:0 ? a:1 : 0)
     " Jump to the next <count>'th quoted region or email separator line,
     " whichever is closer to the current position. "Closer" here exactly means
@@ -135,30 +133,30 @@ function! s:JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion,
 	execute "normal! \<C-\>\<C-n>\<Esc>"
     endif
 endfunction
-function! s:JumpToBeginForward( mode )
-    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0, 0)
+function! mail_movement#JumpToBeginForward( mode )
+    call CountJump#JumpFunc(a:mode, function('mail_movement#JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0, 0)
 endfunction
-function! s:JumpToBeginBackward( mode )
-    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1, 0)
+function! mail_movement#JumpToBeginBackward( mode )
+    call CountJump#JumpFunc(a:mode, function('mail_movement#JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1, 0)
 endfunction
-function! s:JumpToEndForward( mode )
+function! mail_movement#JumpToEndForward( mode )
     let l:useToEndOfLine = (a:mode !=# 'n')
-    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1, l:useToEndOfLine)
+    call CountJump#JumpFunc(a:mode, function('mail_movement#JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1, l:useToEndOfLine)
 endfunction
-function! s:JumpToEndBackward( mode )
-    call CountJump#JumpFunc(a:mode, s:function('s:JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
+function! mail_movement#JumpToEndBackward( mode )
+    call CountJump#JumpFunc(a:mode, function('mail_movement#JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
-\   s:function('s:JumpToBeginForward'),
-\   s:function('s:JumpToBeginBackward'),
+\   function('mail_movement#JumpToBeginForward'),
+\   function('mail_movement#JumpToBeginBackward'),
 \   '',
-\   s:function('s:JumpToEndBackward'),
+\   function('mail_movement#JumpToEndBackward'),
 \   0
 \)
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '', 
 \   '',
 \   '',
-\   s:function('s:JumpToEndForward'),
+\   function('mail_movement#JumpToEndForward'),
 \   '',
 \   1
 \)
@@ -173,15 +171,15 @@ function! s:GetNestedQuotePattern()
     let l:quotePrefix = matchstr(getline('.'), '^[ >]*>')
     return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0) . ' *>')
 endfunction
-function! s:JumpToNestedForward( mode )
+function! mail_movement#JumpToNestedForward( mode )
     call CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 1, 0, 0)
 endfunction
-function! s:JumpToNestedBackward( mode )
+function! mail_movement#JumpToNestedBackward( mode )
     call CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, -1, 1, 0)
 endfunction
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '+', '', 
-\   s:function('s:JumpToNestedForward'),
-\   s:function('s:JumpToNestedBackward'),
+\   function('mail_movement#JumpToNestedForward'),
+\   function('mail_movement#JumpToNestedBackward'),
 \   0,
 \   0,
 \   0
@@ -198,7 +196,7 @@ call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '+', '',
 "			- the same nesting level
 "			- the contents of an email message without the preceding
 "			  mail headers
-function! s:JumpToQuoteBegin( count, isInner )
+function! mail_movement#JumpToQuoteBegin( count, isInner )
     let s:quotePrefix = matchstr(getline('.'), '^[ >]*>')
     if empty(s:quotePrefix)
 	if a:isInner
@@ -217,7 +215,7 @@ function! s:JumpToQuoteBegin( count, isInner )
 
     return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1, -1, 0)
 endfunction
-function! s:JumpToQuoteEnd( count, isInner )
+function! mail_movement#JumpToQuoteEnd( count, isInner )
     if empty(s:quotePrefix)
 	let l:separatorPattern = '^' . s:GetMailSeparatorPattern() . '\@!.*\n' . s:GetMailSeparatorPattern() . '\?From:\s\|\%$'
 	return CountJump#CountSearch(a:count, [l:separatorPattern, 'W'])
@@ -226,11 +224,10 @@ function! s:JumpToQuoteEnd( count, isInner )
     endif
 endfunction
 call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'aI', 'V',
-\   s:function('s:JumpToQuoteBegin'),
-\   s:function('s:JumpToQuoteEnd'),
+\   function('mail_movement#JumpToQuoteBegin'),
+\   function('mail_movement#JumpToQuoteEnd'),
 \)
 
 let &cpo = s:save_cpo
 unlet s:save_cpo
-
 " vim: set sts=4 sw=4 noexpandtab ff=unix fdm=syntax :
