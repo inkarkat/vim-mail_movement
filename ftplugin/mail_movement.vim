@@ -230,4 +230,4 @@ call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'aI', 'V',
 
 let &cpo = s:save_cpo
 unlet s:save_cpo
-" vim: set sts=4 sw=4 noexpandtab ff=unix fdm=syntax :
+" vim: set ts=8 sts=4 sw=4 noexpandtab ff=unix fdm=syntax :
