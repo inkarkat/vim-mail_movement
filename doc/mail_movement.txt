@@ -7,6 +7,9 @@ IDEAS:
 
 HISTORY:
 
+1.53	13-Jun-2011
+FIX: Directly ring the bell to avoid problems when running under :silent!. 
+
 1.52	20-Dec-2010
 Adapted to CountJump#Region#JumpToNextRegion() again returning jump position in
 version 1.40. 
