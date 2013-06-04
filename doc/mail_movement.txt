@@ -1,27 +1,30 @@
 IDEAS:
 
-- Support "[On ..., ]<Name> wrote:" header: 
-  - Adapt motions to accept this in place of the "From:" header. 
+- Support "[On ..., ]<Name> wrote:" header:
+  - Adapt motions to accept this in place of the "From:" header.
   - Include in "aq" text object
-- Add "ah" text object for the mail header block. 
+- Add "ah" text object for the mail header block.
 
 HISTORY:
 
+1.54    RELEASEME
+Avoid use of s:function() by using autoload function name.
+
 1.53	13-Jun-2011
-FIX: Directly ring the bell to avoid problems when running under :silent!. 
+FIX: Directly ring the bell to avoid problems when running under :silent!.
 
 1.52	20-Dec-2010
 Adapted to CountJump#Region#JumpToNextRegion() again returning jump position in
-version 1.40. 
+version 1.40.
 
 1.51	20-Dec-2010
 - ENH: ][ mapping in operator-pending and visual mode now also operates over /
-  select the last line of the quote. This is what the user expects. 
-- Adapted to changed interface of CountJump.vim; now requires version 1.30. 
+  select the last line of the quote. This is what the user expects.
+- Adapted to changed interface of CountJump.vim; now requires version 1.30.
 
 1.50	08-Aug-2010
 ENH: Added support for MS Outlook-style quoting with email separator and mail
-headers. 
+headers.
 
 1.00	03-Aug-2010
-First published version. 
+First published version.
