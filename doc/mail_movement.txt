@@ -7,8 +7,8 @@ IDEAS:
 
 HISTORY:
 
-1.54    RELEASEME
-Avoid use of s:function() by using autoload function name.
+1.54    05-Jun-2013
+Avoid use of s:function() by using autoload function name. This fixes a regression in Vim 7.3.1032, reported by lilydjwg.
 
 1.53	13-Jun-2011
 FIX: Directly ring the bell to avoid problems when running under :silent!.
