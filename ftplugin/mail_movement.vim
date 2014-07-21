@@ -3,7 +3,7 @@
 " DEPENDENCIES:
 "   - CountJump/Region.vim, CountJump/TextObjects.vim autoload scripts.
 "
-" Copyright: (C) 2010-2011 Ingo Karkat
+" Copyright: (C) 2010-2014 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
 "
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
@@ -64,24 +64,6 @@ function! s:MakeQuotePattern( quotePrefix, isInner )
     return '^\%( *>\)\{' . l:quoteLevel . '\}' . (a:isInner ? '\%( *$\| *[^ >]\)' : '')
 endfunction
 
-"			A quoted email is determined either by:
-"			- lines prefixed with ">" (one, or multiple for nested
-"			  quotes)
-"			- an optional email separator (e.g.
-"			"-----Original Message-----") and the standard "From: <Name>"
-"			mail header, optionally followed by other header lines.
-
-"			Move around email quotes of either:
-"			- a certain nesting level, as determined by the current
-"			  line; if the cursor is not on a quoted line, any
-"			  nesting level will be used.
-"			- the range of lines from the "From: <Name>" mail header
-"			  up to the line preceding the next email separator or
-"			  next mail header.
-"]]			Go to [count] next start of an email quote.
-"][			Go to [count] next end of an email quote.
-"[[			Go to [count] previous start of an email quote.
-"[]			Go to [count] previous end of an email quote.
 function! s:GetCurrentQuoteNestingPattern()
     let l:quotePrefix = matchstr(getline('.'), '^[ >]*>')
     return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0))
@@ -146,6 +128,7 @@ endfunction
 function! mail_movement#JumpToEndBackward( mode )
     call CountJump#JumpFunc(a:mode, function('mail_movement#JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
 endfunction
+
 call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '',
 \   function('mail_movement#JumpToBeginForward'),
 \   function('mail_movement#JumpToBeginBackward'),
@@ -162,11 +145,6 @@ call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '',
 \)
 
 
-"			Move to nested email quote (i.e. of a higher nesting
-"			level as the current line; if the cursor is not on a
-"			quoted line, any nesting level will be used).
-"]+			Go to [count] next start of a nested email quote.
-"[+			Go to [count] previous start of a nested email quote.
 function! s:GetNestedQuotePattern()
     let l:quotePrefix = matchstr(getline('.'), '^[ >]*>')
     return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0) . ' *>')
@@ -186,16 +164,6 @@ call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '+', '',
 \)
 
 
-"aq			"a quote" text object, select [count] email quotes, i.e.
-"			- contiguous lines having at least the same as the
-"			  current line's nesting level
-"			- one email message including the preceding mail headers
-"			  and optional email separator
-"iq			"inner quote" text object, select [count] regions with
-"			either:
-"			- the same nesting level
-"			- the contents of an email message without the preceding
-"			  mail headers
 function! mail_movement#JumpToQuoteBegin( count, isInner )
     let s:quotePrefix = matchstr(getline('.'), '^[ >]*>')
     if empty(s:quotePrefix)
