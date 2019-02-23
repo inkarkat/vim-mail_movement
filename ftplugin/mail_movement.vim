@@ -1,7 +1,8 @@
 " mail_movement.vim: Movement over email quotes with ]] etc.
 "
 " DEPENDENCIES:
-"   - CountJump/Region.vim, CountJump/TextObjects.vim autoload scripts.
+"   - CountJump/Motion.vim autoload script
+"   - CountJump/TextObject.vim autoload script
 "
 " Copyright: (C) 2010-2014 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
@@ -9,6 +10,9 @@
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
+"   1.55.010	22-Jul-2014	Extract functions into separate autoload script.
+"                               Introduce configuration variables to be able to
+"                               reconfigure the mappings.
 "   1.54.009	21-Sep-2011	Avoid use of s:function() by using autoload
 "				function name.
 "   1.53.008	13-Jun-2011	FIX: Directly ring the bell to avoid problems
@@ -46,8 +50,9 @@ endif
 let s:save_cpo = &cpo
 set cpo&vim
 
-" Force loading of autoload script, because creation of Funcref doesn't do this.
-silent! call CountJump#Region#DoesNotExist()
+if v:version < 702 | runtime autoload/ft/mail/movement.vim | endif  " The Funcref doesn't trigger the autoload in older Vim versions.
+
+"- configuration ---------------------------------------------------------------
 
 " List of patterns for email separator lines. These are anchored at the
 " beginning of the line (implicit /^/, do not add) and must include the end of
@@ -55,145 +60,50 @@ silent! call CountJump#Region#DoesNotExist()
 if ! exists('g:mail_SeparatorPatterns')
     let g:mail_SeparatorPatterns = [ '-\+Original Message-\+\n', '_\+\n' ]
 endif
-function! s:GetMailSeparatorPattern()
-    return '\%(' . join(g:mail_SeparatorPatterns, '\|') . '\)'
-endfunction
 
-function! s:MakeQuotePattern( quotePrefix, isInner )
-    let l:quoteLevel = strlen(substitute(a:quotePrefix, '[^>]', '', 'g'))
-    return '^\%( *>\)\{' . l:quoteLevel . '\}' . (a:isInner ? '\%( *$\| *[^ >]\)' : '')
-endfunction
+if ! exists('g:mail_movement_BeginMapping')
+    let g:mail_movement_BeginMapping = ''
+endif
+if ! exists('g:mail_movement_EndMapping')
+    let g:mail_movement_EndMapping = ''
+endif
+if ! exists('g:mail_movement_NestedMapping')
+    let g:mail_movement_NestedMapping = '+'
+endif
+if ! exists('g:mail_movement_QuoteTextObject')
+    let g:mail_movement_QuoteTextObject = 'q'
+endif
 
-function! s:GetCurrentQuoteNestingPattern()
-    let l:quotePrefix = matchstr(getline('.'), '^[ >]*>')
-    return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0))
-endfunction
-function! s:GetDifference( pos )
-    let l:difference = (a:pos[0] == 0 ? 0x7FFFFFFF : (a:pos[0] - line('.')))
-    return (l:difference < 0 ? -1 * l:difference : l:difference)
-endfunction
-function! mail_movement#JumpToQuotedRegionOrSeparator( count, pattern, step, isAcrossRegion, isToEnd, ... )
-    let l:isToEndOfLine = (a:0 ? a:1 : 0)
-    " Jump to the next <count>'th quoted region or email separator line,
-    " whichever is closer to the current position. "Closer" here exactly means
-    " whichever type lies closer to the current position. This should only
-    " matter if separated emails contain quotes; we then want a 2]] jump to the
-    " beginning of the second separated email, not to the second quotes
-    " contained in the first mail.
-    "	X We're here.
-    " 	-- message 1 --
-    " 	blah
-    " 	> quote 1
-    " 	> quote 2
-    " 	blah
-    " 	-- message 2 --
-    " 	2]] should jump here.
-    " This is implemented by searching for the next region / separator (without
-    " moving the cursor), and then choosing the one that exists and is closer to
-    " the current position.
-    let l:nextRegionPos = CountJump#Region#SearchForNextRegion(1, a:pattern, 1, a:step, a:isAcrossRegion)
+"- mappings --------------------------------------------------------------------
 
-    let l:separatorPattern = (a:isToEnd ?
-    \	'^' . s:GetMailSeparatorPattern() . '\@!.*\n' . s:GetMailSeparatorPattern() . '\?From:\s\|\%$' :
-    \	'^From:\s'
-    \)
-    let l:separatorSearchOptions = (a:step == -1 ? 'b' : '') . 'W'
-    let l:nextSeparatorPos = searchpos(l:separatorPattern, l:separatorSearchOptions . 'n')
-
-    let l:nextRegionDifference = s:GetDifference(l:nextRegionPos)
-    let l:nextSeparatorDifference = s:GetDifference(l:nextSeparatorPos)
-
-    if l:nextRegionDifference < l:nextSeparatorDifference && l:nextRegionPos != [0, 0]
-	call CountJump#Region#JumpToNextRegion(a:count, a:pattern, 1, a:step, a:isAcrossRegion, l:isToEndOfLine)
-    elseif l:nextSeparatorPos != [0, 0]
-	call CountJump#CountSearch(a:count, [l:separatorPattern, l:separatorSearchOptions])
-	if l:isToEndOfLine
-	    normal! $
-	endif
-    else
-	" Ring the bell to indicate that no further match exists.
-	execute "normal! \<C-\>\<C-n>\<Esc>"
-    endif
-endfunction
-function! mail_movement#JumpToBeginForward( mode )
-    call CountJump#JumpFunc(a:mode, function('mail_movement#JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 0, 0)
-endfunction
-function! mail_movement#JumpToBeginBackward( mode )
-    call CountJump#JumpFunc(a:mode, function('mail_movement#JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 1, 0)
-endfunction
-function! mail_movement#JumpToEndForward( mode )
-    let l:useToEndOfLine = (a:mode !=# 'n')
-    call CountJump#JumpFunc(a:mode, function('mail_movement#JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), 1, 1, 1, l:useToEndOfLine)
-endfunction
-function! mail_movement#JumpToEndBackward( mode )
-    call CountJump#JumpFunc(a:mode, function('mail_movement#JumpToQuotedRegionOrSeparator'), s:GetCurrentQuoteNestingPattern(), -1, 0, 1)
-endfunction
-
-call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '',
-\   function('mail_movement#JumpToBeginForward'),
-\   function('mail_movement#JumpToBeginBackward'),
+call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', g:mail_movement_BeginMapping, g:mail_movement_EndMapping,
+\   function('ft#mail#movement#JumpToBeginForward'),
+\   function('ft#mail#movement#JumpToBeginBackward'),
 \   '',
-\   function('mail_movement#JumpToEndBackward'),
+\   function('ft#mail#movement#JumpToEndBackward'),
 \   0
 \)
-call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '', '',
+call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', g:mail_movement_BeginMapping, g:mail_movement_EndMapping,
 \   '',
 \   '',
-\   function('mail_movement#JumpToEndForward'),
+\   function('ft#mail#movement#JumpToEndForward'),
 \   '',
 \   1
 \)
 
 
-function! s:GetNestedQuotePattern()
-    let l:quotePrefix = matchstr(getline('.'), '^[ >]*>')
-    return (empty(l:quotePrefix) ? '^ *\%(> *\)\+' : s:MakeQuotePattern(l:quotePrefix, 0) . ' *>')
-endfunction
-function! mail_movement#JumpToNestedForward( mode )
-    call CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, 1, 0, 0)
-endfunction
-function! mail_movement#JumpToNestedBackward( mode )
-    call CountJump#JumpFunc(a:mode, function('CountJump#Region#JumpToNextRegion'), s:GetNestedQuotePattern(), 1, -1, 1, 0)
-endfunction
-call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', '+', '',
-\   function('mail_movement#JumpToNestedForward'),
-\   function('mail_movement#JumpToNestedBackward'),
+call CountJump#Motion#MakeBracketMotionWithJumpFunctions('<buffer>', g:mail_movement_NestedMapping, '',
+\   function('ft#mail#movement#JumpToNestedForward'),
+\   function('ft#mail#movement#JumpToNestedBackward'),
 \   0,
 \   0,
 \   0
 \)
 
 
-function! mail_movement#JumpToQuoteBegin( count, isInner )
-    let s:quotePrefix = matchstr(getline('.'), '^[ >]*>')
-    if empty(s:quotePrefix)
-	if a:isInner
-	    let l:separatorPattern = '^' . s:GetMailSeparatorPattern() . '\?From:.*\n\%([A-Za-z0-9_-]\+:.*\n\)*'
-	    let l:matchPos = CountJump#CountSearch(a:count, [l:separatorPattern, 'bcW'])
-	    if l:matchPos != [0, 0]
-		call CountJump#CountSearch(1, [l:separatorPattern, 'ceW'])
-		normal! j
-	    endif
-	    return l:matchPos
-	else
-	    let l:separatorPattern = '\%(^' . s:GetMailSeparatorPattern() . '\@!.*\n\zs\|\%^\)' . s:GetMailSeparatorPattern() . '\?From:\s'
-	    return CountJump#CountSearch(a:count, [l:separatorPattern, 'bcW'])
-	endif
-    endif
-
-    return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1, -1, 0)
-endfunction
-function! mail_movement#JumpToQuoteEnd( count, isInner )
-    if empty(s:quotePrefix)
-	let l:separatorPattern = '^' . s:GetMailSeparatorPattern() . '\@!.*\n' . s:GetMailSeparatorPattern() . '\?From:\s\|\%$'
-	return CountJump#CountSearch(a:count, [l:separatorPattern, 'W'])
-    else
-	return CountJump#Region#JumpToRegionEnd(a:count, s:MakeQuotePattern(s:quotePrefix, a:isInner), 1, 1, 0)
-    endif
-endfunction
-call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', 'q', 'aI', 'V',
-\   function('mail_movement#JumpToQuoteBegin'),
-\   function('mail_movement#JumpToQuoteEnd'),
+call CountJump#TextObject#MakeWithJumpFunctions('<buffer>', g:mail_movement_QuoteTextObject, 'aI', 'V',
+\   function('ft#mail#movement#JumpToQuoteBegin'),
+\   function('ft#mail#movement#JumpToQuoteEnd'),
 \)
 
 let &cpo = s:save_cpo
