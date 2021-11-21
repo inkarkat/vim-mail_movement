@@ -1,1 +1,3 @@
+autoload/ft/mail/movement.vim
 ftplugin/mail_movement.vim
+doc/mail_movement.txt
