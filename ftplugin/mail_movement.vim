@@ -4,15 +4,15 @@
 "   - CountJump/Motion.vim autoload script
 "   - CountJump/TextObject.vim autoload script
 "
-" Copyright: (C) 2010-2014 Ingo Karkat
+" Copyright: (C) 2010-2019 Ingo Karkat
 "   The VIM LICENSE applies to this script; see ':help copyright'.
 "
 " Maintainer:	Ingo Karkat <ingo@karkat.de>
 "
 " REVISION	DATE		REMARKS
 "   1.55.010	22-Jul-2014	Extract functions into separate autoload script.
-"                               Introduce configuration variables to be able to
-"                               reconfigure the mappings.
+"				Introduce configuration variables to be able to
+"				reconfigure the mappings.
 "   1.54.009	21-Sep-2011	Avoid use of s:function() by using autoload
 "				function name.
 "   1.53.008	13-Jun-2011	FIX: Directly ring the bell to avoid problems
